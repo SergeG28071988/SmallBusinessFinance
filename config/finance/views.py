@@ -29,6 +29,7 @@ def dashboard(request):
 
     total_income = totals['income']
     total_expenses = totals['expenses']
+
     current_balance = opening_balance + total_income - total_expenses
 
     latest_transactions = (
@@ -70,7 +71,7 @@ def transactions(request):
 
 
 def reports(request):
-    """Сводные показатели и помесячный финансовый отчёт."""
+    """Финансовая отчётность по месяцам и категориям."""
 
     totals = Transaction.objects.aggregate(
         income=Sum(
@@ -85,6 +86,7 @@ def reports(request):
         ),
     )
 
+    # Доходы и расходы по каждому месяцу.
     monthly_report = (
         Transaction.objects
         .annotate(month=TruncMonth('date'))
@@ -104,11 +106,13 @@ def reports(request):
         .order_by('month')
     )
 
+    # Финансовый результат = доходы - расходы.
     monthly_report = list(monthly_report)
 
     for item in monthly_report:
         item['net_result'] = item['income'] - item['expenses']
 
+    # Доходы по категориям.
     income_by_category = (
         Category.objects
         .filter(
@@ -119,6 +123,7 @@ def reports(request):
         .order_by('-total')
     )
 
+    # Расходы по категориям.
     expenses_by_category = (
         Category.objects
         .filter(
@@ -129,10 +134,13 @@ def reports(request):
         .order_by('-total')
     )
 
+    total_income = totals['income']
+    total_expenses = totals['expenses']
+
     context = {
-        'total_income': totals['income'],
-        'total_expenses': totals['expenses'],
-        'net_result': totals['income'] - totals['expenses'],
+        'total_income': total_income,
+        'total_expenses': total_expenses,
+        'net_result': total_income - total_expenses,
         'monthly_report': monthly_report,
         'income_by_category': income_by_category,
         'expenses_by_category': expenses_by_category,
