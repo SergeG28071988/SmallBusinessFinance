@@ -38,7 +38,7 @@
             <div class="card-body">
                 <div class="stat-label mb-2">Финансовый результат</div>
                 <div class="stat-value {% if net_result >= 0 %}text-success{% else %}text-danger{% endif %}">
-                    {{ net_result|floatformat:2 }} ₽
+                    {{ item.net_result|floatformat:2 }} ₽
                 </div>
             </div>
         </div>

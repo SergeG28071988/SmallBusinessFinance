@@ -104,6 +104,11 @@ def reports(request):
         .order_by('month')
     )
 
+    monthly_report = list(monthly_report)
+
+    for item in monthly_report:
+        item['net_result'] = item['income'] - item['expenses']
+
     income_by_category = (
         Category.objects
         .filter(
