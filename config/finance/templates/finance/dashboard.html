@@ -1,0 +1,120 @@
+{% extends 'finance/base.html' %}
+
+{% block title %}Главная — Финансы предприятия{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="page-title h2 mb-1">Финансовая панель</h1>
+        <p class="text-secondary mb-0">
+            Основные показатели деятельности предприятия
+        </p>
+    </div>
+
+    <a href="{% url 'finance:transactions' %}" class="btn btn-primary">
+        Перейти к операциям
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-label mb-2">Расчётный баланс</div>
+                <div class="stat-value text-primary">
+                    {{ current_balance|floatformat:2 }} ₽
+                </div>
+                <div class="small text-secondary mt-2">
+                    Начальные остатки и операции
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-label mb-2">Доходы</div>
+                <div class="stat-value text-success">
+                    {{ total_income|floatformat:2 }} ₽
+                </div>
+                <div class="small text-secondary mt-2">
+                    Все зарегистрированные доходы
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-label mb-2">Расходы</div>
+                <div class="stat-value text-danger">
+                    {{ total_expenses|floatformat:2 }} ₽
+                </div>
+                <div class="small text-secondary mt-2">
+                    Все зарегистрированные расходы
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-label mb-2">Активные счета</div>
+                <div class="stat-value">
+                    {{ active_accounts_count }}
+                </div>
+                <div class="small text-secondary mt-2">
+                    Активных категорий: {{ active_categories_count }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card content-card">
+    <div class="card-body p-3 p-lg-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h2 class="h5 mb-0">Последние финансовые операции</h2>
+            <a href="{% url 'finance:transactions' %}" class="text-decoration-none">
+                Все операции →
+            </a>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Категория</th>
+                        <th>Счёт</th>
+                        <th>Описание</th>
+                        <th class="text-end">Сумма</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in latest_transactions %}
+                    <tr>
+                        <td>{{ transaction.date|date:"d.m.Y" }}</td>
+                        <td>{{ transaction.category.name }}</td>
+                        <td>{{ transaction.account.name }}</td>
+                        <td>{{ transaction.description|default:"—"|truncatechars:45 }}</td>
+                        <td class="text-end fw-semibold">
+                            {{ transaction.amount|floatformat:2 }} ₽
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-secondary py-5">
+                            Операций пока нет. Добавьте первую запись через панель управления.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
