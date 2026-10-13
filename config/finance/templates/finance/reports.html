@@ -1,3 +1,4 @@
+
 {% extends 'finance/base.html' %}
 
 {% block title %}Финансовые отчёты{% endblock %}
@@ -10,10 +11,9 @@
     </p>
 </div>
 
-<!-- Общие финансовые показатели -->
 <div class="row g-3 mb-4">
     <div class="col-12 col-md-4">
-        <div class="card stat-card">
+        <div class="card stat-card h-100">
             <div class="card-body">
                 <div class="stat-label mb-2">Совокупные доходы</div>
                 <div class="stat-value text-success">
@@ -24,7 +24,7 @@
     </div>
 
     <div class="col-12 col-md-4">
-        <div class="card stat-card">
+        <div class="card stat-card h-100">
             <div class="card-body">
                 <div class="stat-label mb-2">Совокупные расходы</div>
                 <div class="stat-value text-danger">
@@ -35,7 +35,7 @@
     </div>
 
     <div class="col-12 col-md-4">
-        <div class="card stat-card">
+        <div class="card stat-card h-100">
             <div class="card-body">
                 <div class="stat-label mb-2">Финансовый результат</div>
                 <div class="stat-value {% if net_result >= 0 %}text-success{% else %}text-danger{% endif %}">
@@ -49,12 +49,64 @@
     </div>
 </div>
 
-<!-- Помесячная отчётность -->
+<div class="mb-4">
+    <h2 class="h4 mb-3">Визуальный анализ финансов</h2>
+
+    <div class="row g-3">
+        <div class="col-12">
+            <div class="card content-card">
+                <div class="card-body p-3 p-lg-4">
+                    <h3 class="h5 mb-1">Доходы и расходы по месяцам</h3>
+                    <p class="text-secondary small mb-3">
+                        Сравнение поступлений и затрат предприятия
+                    </p>
+                    <div style="position: relative; height: 320px;">
+                        <canvas id="incomeExpensesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-7">
+            <div class="card content-card h-100">
+                <div class="card-body p-3 p-lg-4">
+                    <h3 class="h5 mb-1">Финансовый результат</h3>
+                    <p class="text-secondary small mb-3">
+                        Разница между доходами и расходами за месяц
+                    </p>
+                    <div style="position: relative; height: 300px;">
+                        <canvas id="financialResultChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+            <div class="card content-card h-100">
+                <div class="card-body p-3 p-lg-4">
+                    <h3 class="h5 mb-1">Соотношение доходов и расходов</h3>
+                    <p class="text-secondary small mb-3">
+                        Сравнение совокупных доходов и расходов предприятия
+                    </p>
+                    <div style="position: relative; height: 300px;">
+                        <canvas id="incomeExpensesPieChart"></canvas>
+                    </div>
+                    <div id="incomeExpensesPieEmpty"
+                         class="text-secondary small text-center mt-3"
+                         style="display: none;">
+                        Пока нет данных о доходах и расходах.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card content-card mb-4">
     <div class="card-body p-3 p-lg-4">
         <h2 class="h5 mb-1">Помесячная отчётность</h2>
         <p class="text-secondary small mb-3">
-            Финансовый результат рассчитывается как разница между доходами и расходами каждого месяца.
+            Финансовый результат рассчитывается как доходы минус расходы.
         </p>
 
         <div class="table-responsive">
@@ -71,15 +123,12 @@
                     {% for item in monthly_report %}
                     <tr>
                         <td>{{ item.month|date:"m.Y" }}</td>
-
                         <td class="text-end text-success">
                             {{ item.income|floatformat:2 }} ₽
                         </td>
-
                         <td class="text-end text-danger">
                             {{ item.expenses|floatformat:2 }} ₽
                         </td>
-
                         <td class="text-end fw-semibold {% if item.net_result >= 0 %}text-success{% else %}text-danger{% endif %}">
                             {{ item.net_result|floatformat:2 }} ₽
                         </td>
@@ -97,7 +146,6 @@
     </div>
 </div>
 
-<!-- Доходы и расходы по категориям -->
 <div class="row g-3">
     <div class="col-12 col-lg-6">
         <div class="card content-card h-100">
@@ -141,4 +189,184 @@
         </div>
     </div>
 </div>
+
+{{ chart_data|json_script:"finance-chart-data" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const dataElement = document.getElementById('finance-chart-data');
+
+        if (!dataElement || typeof Chart === 'undefined') {
+            console.error('Не удалось загрузить данные или библиотеку Chart.js.');
+            return;
+        }
+
+        const data = JSON.parse(dataElement.textContent);
+
+        const totalIncome = Number(
+            '{{ total_income|floatformat:2 }}'.replace(',', '.')
+        );
+
+        const totalExpenses = Number(
+            '{{ total_expenses|floatformat:2 }}'.replace(',', '.')
+        );
+
+        const moneyFormatter = new Intl.NumberFormat('ru-RU', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        const moneyTooltip = {
+            callbacks: {
+                label: function (context) {
+                    const value = context.parsed.y;
+                    return context.dataset.label + ': '
+                        + moneyFormatter.format(value) + ' ₽';
+                }
+            }
+        };
+
+        new Chart(document.getElementById('incomeExpensesChart'), {
+            type: 'bar',
+            data: {
+                labels: data.months,
+                datasets: [
+                    {
+                        label: 'Доходы',
+                        data: data.monthly_income,
+                        backgroundColor: 'rgba(25, 135, 84, 0.75)',
+                        borderColor: 'rgb(25, 135, 84)',
+                        borderWidth: 1,
+                        borderRadius: 5
+                    },
+                    {
+                        label: 'Расходы',
+                        data: data.monthly_expenses,
+                        backgroundColor: 'rgba(220, 53, 69, 0.75)',
+                        borderColor: 'rgb(220, 53, 69)',
+                        borderWidth: 1,
+                        borderRadius: 5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: moneyTooltip
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (value) {
+                                return moneyFormatter.format(value) + ' ₽';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        new Chart(document.getElementById('financialResultChart'), {
+            type: 'line',
+            data: {
+                labels: data.months,
+                datasets: [
+                    {
+                        label: 'Финансовый результат',
+                        data: data.monthly_result,
+                        borderColor: 'rgb(13, 110, 253)',
+                        backgroundColor: 'rgba(13, 110, 253, 0.12)',
+                        pointBackgroundColor: 'rgb(13, 110, 253)',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 2,
+                        tension: 0.25,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: moneyTooltip
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function (value) {
+                                return moneyFormatter.format(value) + ' ₽';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const pieCanvas = document.getElementById('incomeExpensesPieChart');
+        const pieEmpty = document.getElementById('incomeExpensesPieEmpty');
+
+        if (totalIncome > 0 || totalExpenses > 0) {
+            new Chart(pieCanvas, {
+                type: 'pie',
+                data: {
+                    labels: ['Доходы', 'Расходы'],
+                    datasets: [
+                        {
+                            data: [totalIncome, totalExpenses],
+                            backgroundColor: [
+                                'rgba(25, 135, 84, 0.85)',
+                                'rgba(220, 53, 69, 0.85)'
+                            ],
+                            borderColor: ['#ffffff', '#ffffff'],
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce(
+                                        (sum, item) => sum + item,
+                                        0
+                                    );
+                                    const percentage = total > 0
+                                        ? value / total * 100
+                                        : 0;
+
+                                    return context.label + ': '
+                                        + moneyFormatter.format(value) + ' ₽ ('
+                                        + percentage.toLocaleString('ru-RU', {
+                                            maximumFractionDigits: 1
+                                        }) + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            pieCanvas.style.display = 'none';
+            pieEmpty.style.display = 'block';
+        }
+    });
+</script>
 {% endblock %}

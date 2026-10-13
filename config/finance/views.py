@@ -1,3 +1,4 @@
+
 from django.db.models import Q, Sum
 from django.db.models.functions import TruncMonth
 from django.shortcuts import render
@@ -29,7 +30,6 @@ def dashboard(request):
 
     total_income = totals['income']
     total_expenses = totals['expenses']
-
     current_balance = opening_balance + total_income - total_expenses
 
     latest_transactions = (
@@ -71,7 +71,7 @@ def transactions(request):
 
 
 def reports(request):
-    """Финансовая отчётность по месяцам и категориям."""
+    """Финансовая отчётность и данные для графиков."""
 
     totals = Transaction.objects.aggregate(
         income=Sum(
@@ -86,8 +86,7 @@ def reports(request):
         ),
     )
 
-    # Доходы и расходы по каждому месяцу.
-    monthly_report = (
+    monthly_report = list(
         Transaction.objects
         .annotate(month=TruncMonth('date'))
         .values('month')
@@ -106,36 +105,60 @@ def reports(request):
         .order_by('month')
     )
 
-    # Финансовый результат = доходы - расходы.
-    monthly_report = list(monthly_report)
-
     for item in monthly_report:
         item['net_result'] = item['income'] - item['expenses']
 
-    # Доходы по категориям.
-    income_by_category = (
+    income_by_category = list(
         Category.objects
         .filter(
             category_type=Category.CategoryType.INCOME,
             transactions__isnull=False,
         )
+        .values('name')
         .annotate(total=Sum('transactions__amount'))
         .order_by('-total')
     )
 
-    # Расходы по категориям.
-    expenses_by_category = (
+    expenses_by_category = list(
         Category.objects
         .filter(
             category_type=Category.CategoryType.EXPENSE,
             transactions__isnull=False,
         )
+        .values('name')
         .annotate(total=Sum('transactions__amount'))
         .order_by('-total')
     )
 
     total_income = totals['income']
     total_expenses = totals['expenses']
+
+    chart_data = {
+        'months': [
+            item['month'].strftime('%m.%Y')
+            for item in monthly_report
+        ],
+        'monthly_income': [
+            float(item['income'])
+            for item in monthly_report
+        ],
+        'monthly_expenses': [
+            float(item['expenses'])
+            for item in monthly_report
+        ],
+        'monthly_result': [
+            float(item['net_result'])
+            for item in monthly_report
+        ],
+        'expense_categories': [
+            item['name']
+            for item in expenses_by_category
+        ],
+        'expense_category_totals': [
+            float(item['total'])
+            for item in expenses_by_category
+        ],
+    }
 
     context = {
         'total_income': total_income,
@@ -144,6 +167,7 @@ def reports(request):
         'monthly_report': monthly_report,
         'income_by_category': income_by_category,
         'expenses_by_category': expenses_by_category,
+        'chart_data': chart_data,
     }
 
     return render(request, 'finance/reports.html', context)
