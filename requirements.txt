@@ -1,4 +1,1 @@
 Django
-Pillow
-django-cleanup
-matplotlib
